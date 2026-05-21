@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>超進化スマブラRPG - 床すり抜け完全バスター版</title>
+    <style>
+        body { text-align: center; background: #eaeaea; font-family: sans-serif; margin: 10px; }
+        canvas { background: #fff; border: 3px solid #333; display: block; margin: 10px auto; }
+        
+        .screen { display: none; }
+        .active { display: block; }
+
+        .menu-box { background: #fff; padding: 25px; border: 3px solid #333; width: 900px; margin: 30px auto; border-radius: 12px; box-shadow: 0 5px 15px rgba(0,0,0,0.2); }
+        .char-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 15px; margin: 20px 0; }
+        .char-card { border: 2px solid #ccc; padding: 10px; border-radius: 8px; cursor: pointer; background: #f9f9f9; transition: all 0.2s; }
+        .char-card:hover { border-color: #3498db; background: #f0f7fc; transform: translateY(-3px); }
+        .char-card.selected { border-color: #e74c3c; background: #fdedec; box-shadow: 0 0 10px rgba(231,76,60,0.4); }
+        .char-name { font-weight: bold; font-size: 16px; margin-bottom: 5px; }
+        .status-star { font-size: 13px; color: #f1c40f; text-align: left; }
+        
+        .select-area { margin: 20px 0; font-size: 18px; font-weight: bold; }
+        .start-btn { font-size: 22px; padding: 12px 35px; background: #2ecc71; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
+
+        .game-header { width: 1600px; margin: 0 auto 5px; display: flex; justify-content: space-between; align-items: center; }
+        .back-btn { font-size: 16px; padding: 8px 15px; background: #e74c3c; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
+        
+        .ui-container { display: flex; justify-content: space-around; width: 1600px; margin: 10px auto 0; font-size: 18px; font-weight: bold; background: #fff; padding: 12px; border-radius: 8px; border: 1px solid #ccc; box-sizing: border-box; }
+        .p1 { color: red; text-align: left; width: 45%; } 
+        .p2 { color: blue; text-align: right; width: 45%; }
+        .hp-bar-bg { width: 100%; height: 20px; background: #ccc; border: 2px solid #333; margin-top: 5px; position: relative; border-radius: 4px; overflow: hidden; }
+        .hp-bar-fill { height: 100%; width: 100%; transition: width 0.1s; }
+        #p1-hp-fill { background: red; float: left; }
+        #p2-hp-fill { background: blue; float: right; }
+        .xp-text { color: #2ecc71; font-size: 14px; }
+    </style>
+</head>
+<body>
+
+    <!-- 1. キャラクター＆レベル選択画面 -->
+    <div id="titleScreen" class="screen active">
+        <div class="menu-box">
+            <h2>超進化スマブラRPG - キャラクター選択</h2>
+            <p>使用するキャラクターを選択してください。足場の上でジャンプしても絶対に下に落ちないよう修正しました！</p>
+            
+            <div class="char-grid" id="charGrid"></div>
+
+            <div class="select-area">
+                <label for="cp-level-select">対戦するCPのレベル: </label>
+                <select id="cp-level-select" style="font-size:18px; padding:5px;">
+                    <option value="1">Lv.1 (CP体力: 300)</option>
+                    <option value="2">Lv.2 (CP体力: 350)</option>
+                    <option value="3">Lv.3 (CP体力: 400)</option>
+                    <option value="4">Lv.4 (CP体力: 450)</option>
+                    <option value="5">Lv.5 (CP体力: 550)</option>
+                    <option value="6">Lv.6 (CP体力: 650)</option>
+                    <option value="7">Lv.7 (CP体力: 750)</option>
+                    <option value="8">Lv.8 (CP体力: 850)</option>
+                    <option value="9">Lv.9 (CP体力: 920)</option>
+                    <option value="10" selected>Lv.10 (最終決戦 / CP体力: 1000の超ボス！)</option>
+                </select>
+            </div>
+            <button class="start-btn" onclick="startGame()">バトル開始！</button>
+        </div>
+    </div>
+
+    <!-- 2. ゲーム本編画面 -->
+    <div id="gameScreen" class="screen">
+        <div class="game-header">
+            <button class="back-btn" onclick="backToMenu()">← キャラ・レベル選択に戻る</button>
+            <span id="stage-title" style="font-weight: bold; font-size: 20px; color: #333;"></span>
+            <div style="width: 140px;"></div>
+        </div>
+
+        <canvas id="gameCanvas" width="1600" height="900"></canvas>
+
+        <div class="ui-container">
+            <div class="p1">
+                【あなた: <span id="p1-char-name">---</span>】 <span id="p1-lv">Lv.1</span> (<span id="p1-dmg">0</span>%)<br>
+                <span class="xp-text">XP: <span id="p1-xp">0</span> / 50000</span>
+                <div class="hp-bar-bg"><div id="p1-hp-fill" class="hp-bar-fill"></div></div>
+                HP: <span id="p1-hp-text">300</span> / <span id="p1-maxhp">300</span>
+            </div>
+            <div class="p2">
+                【CP】 <span id="p2-lv">Lv.10</span> (<span id="p2-dmg">0</span>%)<br>
+                <span style="color:gray; font-size:14px;">床の上でジャンプしても下に抜けなくなりました！</span>
+                <div class="hp-bar-bg"><div id="p2-hp-fill" class="hp-bar-fill"></div></div>
+                HP: <span id="p2-hp-text">1000</span> / <span id="p2-maxhp">1000</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const characters = [
+            { id: 0, name: "ソルジャー", color: "#e74c3c", atk: 3, spd: 3, jmp: 3 },
+            { id: 1, name: "ストライカー", color: "#f39c12", atk: 5, spd: 2, jmp: 2 },
+            { id: 2, name: "ニンジャ", color: "#2c3e50", atk: 2, spd: 5, jmp: 4 },
+            { id: 3, name: "フェザー", color: "#3498db", atk: 2, spd: 3, jmp: 5 },
+            { id: 4, name: "タイタン", color: "#7f8c8d", atk: 4, spd: 1, jmp: 2 },
+            { id: 5, name: "スピードスター", color: "#1abc9c", atk: 1, spd: 5, jmp: 3 },
+            { id: 6, name: "バスター", color: "#9b59b6", atk: 5, spd: 1, jmp: 3 },
+            { id: 7, name: "スカイハウンド", color: "#d35400", atk: 3, spd: 2, jmp: 5 },
+            { id: 8, name: "ヴァンガード", color: "#27ae60", atk: 4, spd: 3, jmp: 2 },
+            { id: 9, name: "シャドウ", color: "#111111", atk: 4, spd: 4, jmp: 3 }
+        ];
+
+        let selectedCharId = 0; 
+
+        function drawCharSelection() {
+            const grid = document.getElementById("charGrid");
+            grid.innerHTML = "";
+            characters.forEach(char => {
+                const card = document.createElement("div");
+                card.className = `char-card ${char.id === selectedCharId ? 'selected' : ''}`;
+                card.id = `char-card-${char.id}`;
+                card.onclick = () => selectCharacter(char.id);
+
+                let atkStars = "★".repeat(char.atk) + "☆".repeat(5 - char.atk);
+                let spdStars = "★".repeat(char.spd) + "☆".repeat(5 - char.spd);
+                let jmpStars = "★".repeat(char.jmp) + "☆".repeat(5 - char.jmp);
+
+                card.innerHTML = `
+                    <div class="char-name" style="color:${char.color === '#111111' ? '#333' : char.color}">${char.name}</div>
+                    <div class="status-star">攻撃: ${atkStars}</div>
+                    <div class="status-star">速度: ${spdStars}</div>
+                    <div class="status-star">跳躍: ${jmpStars}</div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        function selectCharacter(id) {
+            document.getElementById(`char-card-${selectedCharId}`).classList.remove("selected");
+            selectedCharId = id;
+            document.getElementById(`char-card-${selectedCharId}`).classList.add("selected");
+        }
+
+        drawCharSelection();
+
+        const canvas = document.getElementById("gameCanvas");
+        const ctx = canvas.getContext("2d");
+
+        let mainStage = { x: 300, y: 700, w: 1000, h: 35 };
+        let subStages = [];
+        let isRunning = false;
+        let bullets = []; 
+
+        let playerLevel = 1;
+        let playerXP = 0;
+        let selectedCPLevel = 10;
+
+        function generateStage(level) {
+            subStages = [];
+            mainStage = { x: 300, y: 700, w: 1000, h: 35 };
+            
+            if (level === 1) {
+                document.getElementById("stage-title").innerText = "ステージ: おてがる平原";
+                subStages.push({ x: 650, y: 520, w: 300, h: 15 });
+            } else if (level === 2 || level === 3) {
+                document.getElementById("stage-title").innerText = "ステージ: ツインプラットフォーム";
+                subStages.push({ x: 350, y: 520, w: 250, h: 15 });
+                subStages.push({ x: 1000, y: 520, w: 250, h: 15 });
+            } else if (level === 4 || level === 5 || level === 6) {
+                document.getElementById("stage-title").innerText = "ステージ: ピラミッドフォート";
+                subStages.push({ x: 400, y: 560, w: 800, h: 15 });
+                subStages.push({ x: 500, y: 420, w: 600, h: 15 });
+                subStages.push({ x: 650, y: 280, w: 300, h: 15 });
+            } else {
+                document.getElementById("stage-title").innerText = "ステージ: 終点バトルフィールド";
+                subStages.push({ x: 450, y: 520, w: 250, h: 15 });
+                subStages.push({ x: 900, y: 520, w: 250, h: 15 });
+                subStages.push({ x: 575, y: 360, w: 450, h: 15 });
+            }
+        }
+
+        function startGame() {
+            selectedCPLevel = parseInt(document.getElementById("cp-level-select").value);
+            generateStage(selectedCPLevel);
+            
+            document.getElementById("titleScreen").classList.remove("active");
+            document.getElementById("gameScreen").classList.add("active");
+            
+            isRunning = true;
+            bullets = []; 
+            resetGame();
+        }
+
+        function backToMenu() {
+            isRunning = false;
+            document.getElementById("gameScreen").classList.remove("active");
+            document.getElementById("titleScreen").classList.add("active");
+            drawCharSelection();
+        }
+
+        let keys = {};
+        window.addEventListener("keydown", (e) => {
+            if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", " ", "n", "N"].includes(e.key)) e.preventDefault();
+            let keyName = e.key.toLowerCase();
+            keys[keyName] = true;
+
+            if (isRunning && e.key === "ArrowUp") {
+                if (p1.chargeTimer === 0 && p1.jumpCount < 2) {
+                    p1.vy = -(10 + p1.charStat.jmp * 0.7); 
+                    p1.jumpCount++;
+                }
+            }
+        });
+        window.addEventListener("keyup", (e) => {
+            let keyName = e.key.toLowerCase();
+            keys[keyName] = false;
+            if (isRunning && keyName === "n" && !p1.isCP) p1.releaseChargeShot();
+        });
+
+        class Player {
+            constructor(x, y, isCP = false) {
+                this.startX = x; this.startY = y;
+                this.isCP = isCP;
+                this.w = 35; this.h = 60; 
+                this.reset();
+            }
+
+            reset() {
+                this.x = this.startX; this.y = this.startY;
+                this.vx = 0; this.vy = 0;
+                this.jumpCount = 0; this.damage = 0;
+                this.attackCooldown = 0; this.isAttacking = false;
+                this.chargeTimer = 0; this.cpShootCooldown = 0;
+
+                if (!this.isCP) {
+                    this.charStat = characters[selectedCharId];
+                    this.color = this.charStat.color;
+                    this.level = playerLevel;
+                    
+                    this.statAtkMod = 0.4 + (this.charStat.atk * 0.2);
+                    this.statSpdMod = 0.4 + (this.charStat.spd * 0.2);
+
+                    this.maxHp = Math.round(300 * Math.pow(1.5, this.level - 1));
+                    this.attackMultiplier = Math.pow(1.5, this.level - 1) * this.statAtkMod;
+                    this.hp = this.maxHp;
+                    document.getElementById("p1-char-name").innerText = this.charStat.name;
+                } else {
+                    this.color = "blue";
+                    this.level = selectedCPLevel;
+                    if (this.level === 1) this.maxHp = 300;
+                    else if (this.level === 2) this.maxHp = 350;
+                    else if (this.level === 3) this.maxHp = 400;
+                    else if (this.level === 4) this.maxHp = 450;
+                    else if (this.level === 5) this.maxHp = 550;
+                    else if (this.level === 6) this.maxHp = 650;
+                    else if (this.level === 7) this.maxHp = 750;
+                    else if (this.level === 8) this.maxHp = 850;
+                    else if (this.level === 9) this.maxHp = 920;
+                    else this.maxHp = 1000;
+
+                    this.attackMultiplier = Math.pow(1.15, this.level - 1);
+                    this.hp = this.maxHp;
+                }
+                this.facing = this.isCP ? -1 : 1;
+            }
+
+            update(opponent) {
+                if (!this.isCP && keys["n"]) {
+                    this.vx = 0; 
+                    this.chargeTimer++;
+                } else if (!this.isCP) {
+                    this.chargeTimer = 0;
+                }
+
+                if (!this.isCP) {
+                    if (this.chargeTimer === 0) {
+                        let currentSpeed = 4.5 + (this.charStat.spd * 0.7);
+                        if (keys["arrowleft"]) { this.vx = -currentSpeed; this.facing = -1; }
+                        else if (keys["arrowright"]) { this.vx = currentSpeed; this.facing = 1; }
+                        else { this.vx *= 0.75; }
+                    }
+                    if (keys[" "] && this.attackCooldown === 0 && this.chargeTimer === 0) {
+                        this.triggerAttack(opponent, 15);
+                    }
+                } else {
+                    let diffX = opponent.x - this.x;
+                    let diffY = opponent.y - this.y;
+                    let speedBase = 2.5 + (Math.min(this.level, 10) * 0.3);
+
+                    if (Math.abs(diffX) > 25) {
+                        this.vx = diffX > 0 ? speedBase : -speedBase;
+                        this.facing = diffX > 0 ? 1 : -1;
+                    } else {
+                        this.vx *= 0.75;
+                    }
+
+                    let jumpChance = 0.02 * (this.level * 0.5);
+                    if (this.y > mainStage.y && this.jumpCount < 2 && Math.random() < 0.1) {
+                        this.vy = -12; this.jumpCount++;
+                    }
+                    if (diffY < -80 && this.jumpCount < 2 && Math.random() < jumpChance) {
+                        this.vy = -12; this.jumpCount++;
+                    }
+
+                    if (Math.abs(diffX) < 60 && Math.abs(diffY) < 55 && this.attackCooldown === 0) {
+                        if (Math.random() < (this.level * 0.1)) {
+                            this.triggerAttack(opponent, 15);
+                        }
+                    }
+
+                    if (this.cpShootCooldown > 0) {
+                        this.cpShootCooldown--;
+                    } else {
+                        let shootChance = 0.008 * this.level;
+                        if (Math.abs(diffY) < 150 && Math.abs(diffX) > 150 && Math.random() < shootChance) {
+                            this.cpShoot();
+                            this.cpShootCooldown = Math.max(30, 100 - (this.level * 5));
+                        }
+                    }
+                }
+
+                // 【修正点】移動前の「足元の一番低い位置」を記憶
+                let oldBottom = this.y + this.h;
+
+                this.vy += 0.55; 
+                this.x += this.vx; this.y += this.vy;
+
+                // --- 踏みつけ攻撃 (25点) ---
+                if (this.vy > 0 && this.chargeTimer === 0 &&
+                    this.x + this.w > opponent.x && this.x < opponent.x + opponent.w &&
+                    oldBottom <= opponent.y + 15 && this.y + this.h >= opponent.y) {
+                    
+                    this.vy = -8; this.jumpCount = 1;
+
+                    let jmpBonus = !this.isCP ? (this.charStat.jmp * 3) : 0;
+                    let finalDmg = (25 + jmpBonus) * this.attackMultiplier;
+                    
+                    opponent.damage += 25;
+                    opponent.applyDamage(Math.round(finalDmg));
+
+                    let knockback = 6 + (opponent.damage * 0.12);
+                    opponent.vy = knockback;
+                    opponent.vx = (this.x < opponent.x) ? 4 : -4;
+                }
+
+                // --- 【修正点】メイン床判定：前フレームで床より上にいた（oldBottom <= mainStage.y）時だけ確実に着地 ---
+                if (this.x + this.w > mainStage.x && this.x < mainStage.x + mainStage.w) {
+                    if (oldBottom <= mainStage.y && this.y + this.h >= mainStage.y && this.vy >= 0) {
+                        this.y = mainStage.y - this.h; 
+                        this.vy = 0; 
+                        this.jumpCount = 0;
+                    }
+                }
+
+                // --- 【修正点】空中足場判定：前フレームで床より上にいた時だけ着地（下からのジャンプ中やすれ違い中はすり抜けるが、着地後は絶対に落ちない） ---
+                for (let sub of subStages) {
+                    if (this.x + this.w > sub.x && this.x < sub.x + sub.w) {
+                        if (oldBottom <= sub.y && this.y + this.h >= sub.y && this.vy >= 0) {
+                            this.y = sub.y - this.h; 
+                            this.vy = 0; 
+                            this.jumpCount = 0;
+                        }
+                    }
+                }
+
+                if (this.attackCooldown > 0) this.attackCooldown--;
+                else this.isAttacking = false;
+            }
+
+            releaseChargeShot() {
+                let isFullCharge = this.chargeTimer >= 180;
+                let dmg = isFullCharge ? 50 : 10;
+                let size = isFullCharge ? 24 : 10;
+                let speed = isFullCharge ? 8 : 12;
+                
+                let bx = (this.facing === 1) ? this.x + this.w + 5 : this.x - size - 5;
+                let by = this.y + this.h / 2 - size / 2;
+
+                bullets.push({
+                    x: bx, y: by, size: size,
+                    vx: this.facing * speed,
+                    damage: dmg,
+                    color: isFullCharge ? "gold" : "orange",
+                    type: "p1"
+                });
+
+                this.chargeTimer = 0;
+            }
+
+            cpShoot() {
+                let size = 10; let speed = 10;
+                let bx = (this.facing === 1) ? this.x + this.w + 5 : this.x - size - 5;
+                let by = this.y + this.h / 2 - size / 2;
+
+                bullets.push({
+                    x: bx, y: by, size: size,
+                    vx: this.facing * speed,
+                    damage: 10,
+                    color: "cyan",
+                    type: "p2"
+                });
+            }
+
+            applyDamage(amount) {
+                this.hp -= amount;
+                if (this.hp < 0) this.hp = 0;
+                updateUIDisplay();
+            }
+
+            triggerAttack(opponent, baseDmg) {
+                this.isAttacking = true; this.attackCooldown = 20;
+
+                let attackX = (this.facing === 1) ? this.x + this.w : this.x - 35;
+                let attackRect = { x: attackX, y: this.y + 10, w: 35, h: 40 };
+
+                if (attackRect.x < opponent.x + opponent.w && attackRect.x + attackRect.w > opponent.x &&
+                    attackRect.y < opponent.y + opponent.h && attackRect.h + attackRect.y > opponent.y) {
+                    
+                    opponent.damage += 12;
+                    let finalDmg = baseDmg * this.attackMultiplier;
+                    opponent.applyDamage(Math.round(finalDmg));
+
+                    let knockback = 5 + (opponent.damage * 0.15);
+                    opponent.vx = (this.x < opponent.x) ? knockback : -knockback;
+                    opponent.vy = -knockback * 0.4 - 3;
+                }
+            }
+
+            draw() {
+                if (this.chargeTimer >= 180) {
+                    ctx.fillStyle = (Math.floor(Date.now() / 100) % 2 === 0) ? "yellow" : this.color;
+                } else if (this.chargeTimer > 0) {
+                    ctx.fillStyle = "orange";
+                } else {
+                    ctx.fillStyle = this.color;
+                }
+
+                ctx.fillRect(this.x, this.y, this.w, this.h);
+
+                ctx.fillStyle = "black";
+                let eyeX = (this.facing === 1) ? this.x + this.w - 10 : this.x + 4;
+                ctx.fillRect(eyeX, this.y + 12, 6, 6);
+
+                if (this.isAttacking) {
+                    ctx.fillStyle = "rgba(255, 215, 0, 0.8)";
+                    let attackX = (this.facing === 1) ? this.x + this.w + 20 : this.x - 20;
+                    ctx.beginPath(); ctx.arc(attackX, this.y + 30, 25, 0, Math.PI * 2); ctx.fill();
+                }
+                if (this.chargeTimer > 0 && this.chargeTimer < 180) {
+                    ctx.strokeStyle = "rgba(255, 165, 0, 0.5)"; ctx.lineWidth = 4;
+                    ctx.strokeRect(this.x - 6, this.y - 6, this.w + 12, this.h + 12);
+                }
+            }
+        }
+
+        const p1 = new Player(500, 500, false);
+        const p2 = new Player(1100, 500, true);
+
+        function updateUIDisplay() {
+            if(!isRunning) return;
+            document.getElementById("p1-lv").innerText = `Lv.${playerLevel}`;
+            document.getElementById("p1-dmg").innerText = p1.damage;
+            document.getElementById("p1-xp").innerText = playerXP;
+            document.getElementById("p1-hp-text").innerText = p1.hp;
+            document.getElementById("p1-maxhp").innerText = p1.maxHp;
+            document.getElementById("p1-hp-fill").style.width = `${(p1.hp / p1.maxHp) * 100}%`;
+
+            document.getElementById("p2-lv").innerText = `Lv.${selectedCPLevel}`;
+            document.getElementById("p2-dmg").innerText = p2.damage;
+            document.getElementById("p2-hp-text").innerText = p2.hp;
+            document.getElementById("p2-maxhp").innerText = p2.maxHp;
+            document.getElementById("p2-hp-fill").style.width = `${(p2.hp / p2.maxHp) * 100}%`;
+        }
+
+        function gainXP(amount) {
+            playerXP += amount;
+            if (playerXP >= 50000) {
+                playerLevel += 1;
+                playerXP -= 50000;
+                alert(`レベルアップ！ あなたの強さが Lv.${playerLevel} になりました！`);
+            }
+            updateUIDisplay();
+        }
+
+        function updateAndDrawBullets() {
+            for (let i = bullets.length - 1; i >= 0; i--) {
+                let b = bullets[i]; b.x += b.vx;
+                ctx.fillStyle = b.color; ctx.beginPath(); ctx.arc(b.x + b.size/2, b.y + b.size/2, b.size, 0, Math.PI * 2); ctx.fill();
+                let target = (b.type === "p1") ? p2 : p1;
+
+                if (b.x < target.x + target.w && b.x + b.size > target.x &&
+                    b.y < target.y + target.h && b.y + b.size > target.y) {
+                    
+                    target.damage += (b.damage === 50) ? 25 : 8; 
+                    
+                    let finalDmg = b.damage * (b.type === "p1" ? p1.attackMultiplier : p2.attackMultiplier);
+                    target.applyDamage(Math.round(finalDmg));
+
+                    let knockback = (b.damage === 50) ? 10 + (target.damage * 0.15) : 3;
+                    target.vx = (b.vx > 0) ? knockback : -knockback; target.vy = -knockback * 0.3;
+
+                    bullets.splice(i, 1); 
+                    continue;
+                }
+
+                if (b.x < 0 || b.x > canvas.width) {
+                    bullets.splice(i, 1);
+                }
+            }
+        }
+
+        function drawBackground() {
+            let gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            gradient.addColorStop(0, "#1a1c2e"); gradient.addColorStop(0.5, "#39224d"); gradient.addColorStop(1, "#8e44ad");
+            ctx.fillStyle = gradient; ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            ctx.fillStyle = "rgba(26, 20, 35, 0.6)";
+            ctx.fillRect(100, 500, 200, 200); ctx.fillRect(400, 450, 150, 250); ctx.fillRect(850, 520, 300, 180); ctx.fillRect(1300, 480, 180, 220);
+        }
+
+        function loop() {
+            if (!isRunning) return;
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawBackground();
+
+            p1.update(p2); p2.update(p1);
+            updateAndDrawBullets();
+
+            ctx.fillStyle = "#2c3e50"; ctx.fillRect(mainStage.x, mainStage.y, mainStage.w, mainStage.h);
+
+            ctx.fillStyle = "#7f8c8d";
+            for (let sub of subStages) {
+                ctx.fillRect(sub.x, sub.y, sub.w, sub.h);
+            }
+
+            p1.draw(); p2.draw();
+
+            if (p1.y > canvas.height || p1.x < 0 || p1.x > canvas.width || p1.hp <= 0) {
+                alert(`敗北！`);
+                resetGame();
+            } else if (p2.y > canvas.height || p2.x < 0 || p2.x > canvas.width || p2.hp <= 0) {
+                let earnedXP = selectedCPLevel * 10000; 
+                alert(`勝利！ 経験値を ${earnedXP} XP 獲得しました！`);
+                gainXP(earnedXP);
+                resetGame();
+            }
+        }
+
+        function resetGame() {
+            keys = {}; 
+            bullets = [];
+            p1.reset();
+            p2.reset();
+            updateUIDisplay();
+        }
+
+        function mainLoop() {
+            loop();
+            requestAnimationFrame(mainLoop);
+        }
+        mainLoop();
+    </script>
+</body>
+</html>
